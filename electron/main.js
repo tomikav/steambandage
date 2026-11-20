@@ -1,6 +1,7 @@
 const path = require('path');
 const { app, BrowserWindow, ipcMain, Notification, shell, Tray, Menu, nativeImage } = require('electron');
 const Farmer = require('./steam/farmer');
+const { detectAccounts } = require('./steam/local');
 
 let win = null;
 let tray = null;
@@ -69,6 +70,9 @@ farmer.on('drop', ({ game, count }) => {
 ipcMain.handle('state', () => farmer.snapshot());
 ipcMain.handle('resume', () => farmer.resume());
 ipcMain.handle('login', (_e, data) => farmer.login(data));
+ipcMain.handle('qr-start', () => farmer.startQr());
+ipcMain.handle('qr-cancel', () => farmer.cancelQr());
+ipcMain.handle('accounts', () => detectAccounts());
 ipcMain.handle('guard', (_e, code) => farmer.submitGuard(code));
 ipcMain.handle('logout', () => farmer.logout());
 ipcMain.handle('start', () => farmer.start());

@@ -60,6 +60,12 @@ class FakeCommunity extends EventEmitter {
   getUserInventoryContents(_id, _app, _ctx, _t, cb) { cb(null, world.inventory); }
 }
 
+class FakeLoginSession extends EventEmitter {
+  constructor() { super(); FakeLoginSession.last = this; }
+  async startWithQR() { return { actionRequired: true, qrChallengeUrl: 'https://s.team/q/1/999' }; }
+  cancelLoginAttempt() { this.cancelled = true; }
+}
+
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'sb-'));
 const fakeElectron = {
   app: { getPath: () => tmp },
@@ -70,6 +76,7 @@ Module._load = function (req, ...rest) {
   if (req === 'electron') return fakeElectron;
   if (req === 'steam-user') return FakeUser;
   if (req === 'steamcommunity') return FakeCommunity;
+  if (req === 'steam-session') return { LoginSession: FakeLoginSession, EAuthTokenPlatformType: { SteamClient: 1 } };
   return origLoad.call(this, req, ...rest);
 };
 
@@ -163,4 +170,62 @@ test('precios y comisiones', () => {
   assert.equal(parsePrice('0,05€'), 5);
   assert.equal(sellerFromBuyer(100), 88);
   assert.equal(sellerFromBuyer(3), 1);
+});
+
+test('login con QR sin contraseña', async (t) => {
+  const f = new Farmer();
+  t.after(() => { f.logout(); clearTimeout(f.timer); });
+  f.settings.autoStart = false;
+  f.startQr();
+  await wait(50);
+  assert.equal(f.qr.state, 'ready');
+  assert.match(f.qr.svg, /^<svg/);
+
+  FakeLoginSession.last.emit('remoteInteraction');
+  assert.equal(f.qr.state, 'scanned');
+
+  Object.assign(FakeLoginSession.last, { accountName: 'tomikav', refreshToken: 'qr-token' });
+  FakeLoginSession.last.emit('authenticated');
+  assert.equal(f.status, 'connecting');
+  assert.equal(store.loadToken().token, 'qr-token', 'guarda el token del QR');
+  await wait(50);
+  assert.equal(f.status, 'guard', 'el cliente falso pide guard; con token real no lo pediría');
+});
+
+test('el QR vencido se renueva solo', async () => {
+  const f = new Farmer();
+  f.startQr();
+  await wait(30);
+  const first = FakeLoginSession.last;
+  first.emit('timeout');
+  await wait(30);
+  assert.notEqual(FakeLoginSession.last, first);
+  assert.equal(f.qr.state, 'ready');
+  f.cancelQr();
+  assert.ok(FakeLoginSession.last.cancelled);
+});
+
+test('detecta cuentas de loginusers.vdf', () => {
+  const { parseLoginUsers } = require('../electron/steam/local');
+  const vdf = `"users"
+{
+  "76561198000000001"
+  {
+    "AccountName"   "otra"
+    "PersonaName"   "Otra"
+    "MostRecent"    "0"
+    "Timestamp"     "1700000000"
+  }
+  "76561198000000002"
+  {
+    "AccountName"   "tomikav"
+    "PersonaName"   "Tomika"
+    "MostRecent"    "1"
+    "Timestamp"     "1600000000"
+  }
+}`;
+  const users = parseLoginUsers(vdf);
+  assert.equal(users.length, 2);
+  assert.equal(users[0].accountName, 'tomikav');
+  assert.equal(users[0].personaName, 'Tomika');
 });

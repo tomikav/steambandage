@@ -13,6 +13,7 @@ const SteamCommunity = require('steamcommunity');
 const store = require('../store');
 const { fetchAllBadges, fetchGameDrops } = require('./badges');
 const market = require('./market');
+const QrLogin = require('./qr');
 
 const MIN = 60 * 1000;
 const SOLO_CHECK = 5 * MIN;
@@ -34,6 +35,15 @@ class Farmer extends EventEmitter {
     this.settings = store.getSettings();
     this.stats = store.getStats();
     this.logs = [];
+    this.qrLogin = new QrLogin();
+    this.qrLogin.on('qr', ({ svg, expiresAt }) => { this.qr = { state: 'ready', svg, expiresAt }; this.push(); });
+    this.qrLogin.on('scanned', () => { this.qr = { ...this.qr, state: 'scanned' }; this.push(); });
+    this.qrLogin.on('error', (err) => {
+      const net = /ENOTFOUND|ECONNREFUSED|ETIMEDOUT|ECONNRESET|EAI_AGAIN|socket/i.test(err.message);
+      this.qr = { state: 'error', error: net ? 'Sin conexión con Steam' : `Steam rechazó el QR (${err.message})` };
+      this.push();
+    });
+    this.qrLogin.on('done', ({ accountName, refreshToken }) => this.loginWithToken(accountName, refreshToken));
     this.reset();
   }
 
@@ -72,6 +82,8 @@ class Farmer extends EventEmitter {
     this.session = { drops: 0, startedAt: null, sold: 0, soldCents: 0 };
     this.remember = false;
     this.accountName = null;
+    this.qrLogin?.cancel();
+    this.qr = { state: 'idle' };
   }
 
   // ---------- estado para la UI ----------
@@ -88,6 +100,7 @@ class Farmer extends EventEmitter {
       error: this.error,
       account: this.account,
       guard: this.guard,
+      qr: this.qr,
       phase: this.phase,
       current: this.current,
       queue: this.queue,
@@ -235,6 +248,30 @@ class Farmer extends EventEmitter {
     this.push();
     this.watchConnect();
     this.makeClient().logOn({ accountName, password, logonID: LOGON_ID, machineName: 'SteamBandage' });
+  }
+
+  startQr() {
+    if (this.account || this.status === 'connecting') return;
+    this.qr = { state: 'loading' };
+    this.push();
+    this.qrLogin.start();
+  }
+
+  cancelQr() {
+    this.qrLogin.cancel();
+    this.qr = { state: 'idle' };
+    this.push();
+  }
+
+  loginWithToken(accountName, token) {
+    this.reset();
+    this.remember = true;
+    this.accountName = accountName;
+    store.saveToken(accountName, token);
+    this.status = 'connecting';
+    this.log('info', 'Aprobado desde la app de Steam');
+    this.watchConnect();
+    this.makeClient().logOn({ refreshToken: token, logonID: LOGON_ID, machineName: 'SteamBandage' });
   }
 
   resume() {

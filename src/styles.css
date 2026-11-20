@@ -264,3 +264,64 @@ input:focus, select:focus { border-color: var(--blood); box-shadow: 0 0 0 3px va
 @media (max-width: 1080px) {
   .stats { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ---------- login QR ---------- */
+.qr-login { display: grid; grid-template-columns: auto 1fr; gap: 36px; align-items: center; padding: 34px 38px; width: 760px; }
+.qr-right { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; }
+.qr-right .ornament { margin-top: -6px; }
+
+.qr-box {
+  position: relative; width: 264px; height: 264px; border-radius: 16px;
+  background: radial-gradient(circle at 50% 40%, rgba(194,24,58,.10), transparent 70%), var(--bg);
+  border: 1px solid var(--line2); display: grid; place-items: center;
+}
+.qr-svg { width: 212px; height: 212px; border-radius: 12px; overflow: hidden; box-shadow: 0 0 0 1px rgba(199,167,116,.35), 0 10px 40px -10px rgba(194,24,58,.45); transition: filter .3s, opacity .3s; }
+.qr-svg svg { width: 100%; height: 100%; display: block; }
+.qc { position: absolute; width: 22px; height: 22px; border: 0 solid var(--gold); opacity: .8; }
+.qc.tl { top: 10px; left: 10px; border-top-width: 1.5px; border-left-width: 1.5px; border-top-left-radius: 6px; }
+.qc.tr { top: 10px; right: 10px; border-top-width: 1.5px; border-right-width: 1.5px; border-top-right-radius: 6px; }
+.qc.bl { bottom: 10px; left: 10px; border-bottom-width: 1.5px; border-left-width: 1.5px; border-bottom-left-radius: 6px; }
+.qc.br { bottom: 10px; right: 10px; border-bottom-width: 1.5px; border-right-width: 1.5px; border-bottom-right-radius: 6px; }
+.st-ready .qc { animation: breathe 2.4s ease-in-out infinite; }
+.qr-timer { position: absolute; bottom: -24px; left: 0; right: 0; text-align: center; font-size: 11px; color: var(--dim); font-variant-numeric: tabular-nums; }
+
+.qr-overlay {
+  position: absolute; inset: 0; border-radius: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; text-align: center; padding: 20px; background: rgba(12,10,14,.72); backdrop-filter: blur(2px);
+}
+.qr-overlay.solid { background: var(--bg); }
+.qr-overlay b { font: 600 22px var(--serif); }
+.qr-overlay span { font-size: 12px; color: var(--muted); }
+.qr-overlay .err-txt { color: #ff8a9e; margin-bottom: 6px; }
+.st-scanned .qr-svg { filter: blur(3px); opacity: .35; }
+.qr-check {
+  width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; margin-bottom: 4px;
+  background: var(--blood); color: #fff; font-size: 22px; box-shadow: 0 0 24px rgba(255,77,109,.55);
+  animation: pop .35s ease-out;
+}
+
+.acct-detect {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 10px 12px; border: 1px solid rgba(194,24,58,.35); background: var(--blood-soft); border-radius: 12px;
+}
+.acct-detect img, .av-ph { width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--line2); flex: none; }
+.av-ph { display: grid; place-items: center; background: var(--panel2); font: 600 18px var(--serif); text-transform: uppercase; }
+.ad-name { font-weight: 600; }
+.ad-sub { font-size: 11.5px; color: var(--muted); }
+
+.steps { list-style: none; margin: 2px 0 0; padding: 0; display: flex; flex-direction: column; gap: 9px; font-size: 13px; color: #cfc5cb; }
+.steps li { display: flex; align-items: center; gap: 12px; }
+.steps li span {
+  width: 26px; height: 26px; flex: none; border-radius: 50%; border: 1px solid var(--line2);
+  display: grid; place-items: center; font: 600 13px var(--serif); color: var(--gold);
+}
+.trust { display: flex; gap: 10px; align-items: flex-start; font-size: 11.5px; color: var(--muted); line-height: 1.5; padding-top: 12px; border-top: 1px solid var(--line); width: 100%; }
+.shield { flex: none; margin-top: 1px; }
+.shield path { fill: none; stroke: var(--gold); stroke-width: 1.5; stroke-linejoin: round; }
+.shield .tick-path { stroke: var(--blood2); }
+.link { background: none; border: 0; padding: 0; color: var(--muted); font-size: 12px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line2); }
+.link:hover { color: var(--text); text-decoration-color: var(--blood); }
+.btn.sm { padding: 6px 12px; font-size: 12px; }
+
+@keyframes pop { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.steps li p { margin: 0; }

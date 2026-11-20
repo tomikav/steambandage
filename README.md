@@ -14,6 +14,7 @@
   <a href="#-instalación"><b>Instalación</b></a> &nbsp;✦&nbsp;
   <a href="#-cómo-funciona"><b>Cómo funciona</b></a> &nbsp;✦&nbsp;
   <a href="#-capturas"><b>Capturas</b></a> &nbsp;✦&nbsp;
+  <a href="#-iniciar-sesión"><b>Iniciar sesión</b></a> &nbsp;✦&nbsp;
   <a href="#-ajustes"><b>Ajustes</b></a> &nbsp;✦&nbsp;
   <a href="#-preguntas"><b>Preguntas</b></a>
 </p>
@@ -72,8 +73,8 @@ No lanza procesos falsos de juegos. Solo una conexión ligera con Steam, y se qu
 </td>
 <td width="33%" valign="top">
 
-### ✦ Sesión segura
-La contraseña va directo a Steam. Solo se guarda un token cifrado con Windows (DPAPI).
+### ✦ Login con QR
+Escaneas el código con la app de Steam y apruebas. **SteamBandage nunca ve tu contraseña**: solo recibe un token, que se guarda cifrado con Windows.
 
 </td>
 </tr>
@@ -93,8 +94,8 @@ La contraseña va directo a Steam. Solo se guarda un token cifrado con Windows (
 <td align="center"><img src="docs/screens/settings.webp" alt="Ajustes"><br><sub><b>Ajustes</b> · umbral de horas, orden, autoventa</sub></td>
 </tr>
 <tr>
-<td align="center"><img src="docs/screens/login.webp" alt="Login"><br><sub><b>Login</b> · con soporte para Steam Guard</sub></td>
-<td align="center"><img src="docs/screens/done.webp" alt="Completado"><br><sub><b>Completado</b> · no quedan cromos pendientes</sub></td>
+<td align="center"><img src="docs/screens/login.webp" alt="Login con QR"><br><sub><b>Login con QR</b> · detecta tu cuenta y la apruebas desde el celular</sub></td>
+<td align="center"><img src="docs/screens/scanned.webp" alt="QR escaneado"><br><sub><b>Escaneado</b> · solo falta tocar Aprobar en la app de Steam</sub></td>
 </tr>
 </table>
 
@@ -105,7 +106,7 @@ La contraseña va directo a Steam. Solo se guarda un token cifrado con Windows (
 ```mermaid
 %%{init: {'theme':'base','themeVariables':{'primaryColor':'#19151c','primaryTextColor':'#ece4e8','primaryBorderColor':'#c2183a','lineColor':'#c7a774','secondaryColor':'#141117','tertiaryColor':'#0c0a0e','fontFamily':'Inter, sans-serif'}}}%%
 flowchart LR
-    A([Login + Steam Guard]) --> B[Leer insignias]
+    A([Login con QR]) --> B[Leer insignias]
     B --> C{¿Algún juego<br/>con ≥ 2 h?}
     C -- sí --> D[✦ SOLO<br/>un juego a la vez]
     C -- no --> E[CALENTAMIENTO<br/>hasta 32 juegos]
@@ -167,6 +168,36 @@ El instalador queda en `release/`.
 
 <p align="center"><img src="docs/divider.svg" width="420"></p>
 
+## ✦ Iniciar sesión
+
+<table>
+<tr>
+<td width="55%" valign="top">
+
+1. Abre SteamBandage. Si tienes Steam instalado, **detecta tu cuenta** automáticamente.
+2. En la **app de Steam** de tu celular, ve a **Steam Guard** y toca el ícono de escanear.
+3. Apunta al código y toca **Aprobar**. Listo.
+
+La próxima vez entra sola. Para quitarle el acceso, revócalo desde la app de Steam en **Dispositivos autorizados**.
+
+¿No tienes la app móvil? Abajo del QR está **Entrar con contraseña**, que también soporta los códigos de Steam Guard por correo.
+
+</td>
+<td width="45%" valign="top">
+
+> [!TIP]
+> **¿Por qué es seguro?**
+> - El QR es el mismo sistema que usa Steam en el navegador.
+> - La contraseña nunca pasa por la app.
+> - Solo se guarda un token cifrado con DPAPI de Windows.
+> - De tu PC solo se lee el nombre y el avatar de la cuenta (`loginusers.vdf`); nunca sesiones ni cookies.
+
+</td>
+</tr>
+</table>
+
+<p align="center"><img src="docs/divider.svg" width="420"></p>
+
 ## ✦ Ajustes
 
 | Ajuste | Por defecto | Descripción |
@@ -193,6 +224,8 @@ steambandage/
 │   ├── store.js           ajustes, estadísticas y token cifrado
 │   └── steam/
 │       ├── farmer.js      núcleo: login, algoritmo, pausas, drops
+│       ├── qr.js          login con QR (steam-session)
+│       ├── local.js       detecta la cuenta de Steam del PC
 │       ├── badges.js      lee insignias y cromos restantes
 │       └── market.js      autoventa y cálculo de comisiones
 ├── src/                   interfaz en React
@@ -211,6 +244,12 @@ steambandage/
 <summary><b>¿Me pueden banear por usar esto?</b></summary>
 <br>
 Farmear cromos con idlers lleva años siendo tolerado por Steam (ArchiSteamFarm, Idle Master, etc.) y no afecta VAC, porque no se toca ningún juego. Aun así, es una herramienta no oficial: úsala bajo tu propio criterio.
+</details>
+
+<details>
+<summary><b>¿Por qué no puedo conectarme solo con mi SteamID?</b></summary>
+<br>
+Para que Steam cuente horas y suelte cromos, la cuenta tiene que tener una sesión iniciada. Con el SteamID solo se ve información pública, y ni siquiera cuántos cromos te quedan. Por eso SteamBandage usa el login con QR: tú lo apruebas desde tu celular sin escribir la contraseña en ningún lado.
 </details>
 
 <details>
@@ -247,6 +286,7 @@ Tu perfil o tus detalles de juego deben ser visibles para tu propia sesión. Si 
 
 ## ✦ Hoja de ruta
 
+- [x] Login con QR y detección de la cuenta del PC
 - [x] Farmeo en 2 fases con pausa automática
 - [x] Indicador de drop que aprende de tu cuenta
 - [x] Autoventa opcional
