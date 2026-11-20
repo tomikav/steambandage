@@ -230,12 +230,12 @@ input:focus, select:focus { border-color: var(--blood); box-shadow: 0 0 0 3px va
 .k-done .log-ic { color: var(--ok); }
 
 /* ---------- drawer ---------- */
-.scrim { position: fixed; inset: 0; background: rgba(0,0,0,.45); opacity: 0; pointer-events: none; transition: .2s; z-index: 10; }
+.scrim { position: fixed; inset: 38px 0 0 0; background: rgba(0,0,0,.45); opacity: 0; pointer-events: none; transition: .2s; z-index: 10; }
 .scrim.show { opacity: 1; pointer-events: auto; }
 .drawer {
-  position: fixed; top: 0; right: 0; bottom: 0; width: 400px; z-index: 11;
+  position: fixed; top: 38px; right: 0; bottom: 0; width: 400px; z-index: 11;
   background: var(--panel); border-left: 1px solid var(--line);
-  transform: translateX(100%); transition: transform .25s ease; overflow-y: auto; padding: 40px 6px 20px;
+  transform: translateX(100%); transition: transform .25s ease; overflow-y: auto; padding: 8px 6px 20px;
 }
 .drawer.open { transform: none; }
 .group { padding: 6px 16px 14px; }

@@ -8,7 +8,9 @@ const farmer = new Farmer();
 const isDev = !!process.env.VITE_DEV;
 const icon = path.join(__dirname, '..', 'build', 'icon.png');
 
-if (!app.requestSingleInstanceLock()) app.quit();
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) app.quit();
+let trayHintShown = false;
 
 function createWindow() {
   win = new BrowserWindow({
@@ -28,13 +30,20 @@ function createWindow() {
     },
   });
 
-  if (isDev) win.loadURL('http://localhost:5173');
+  if (isDev) win.loadURL('http://127.0.0.1:5173');
   else win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
 
   win.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });
   win.on('close', (e) => {
     // si está farmeando, cerrar la ventana la manda a la bandeja
-    if (farmer.running && !app.isQuiting) { e.preventDefault(); win.hide(); }
+    if (farmer.running && !app.isQuiting) {
+      e.preventDefault();
+      win.hide();
+      if (!trayHintShown && Notification.isSupported()) {
+        trayHintShown = true;
+        new Notification({ title: 'SteamBandage sigue farmeando', body: 'Está en la bandeja. Clic derecho → Salir para cerrarlo.', icon, silent: true }).show();
+      }
+    }
   });
 }
 
@@ -71,12 +80,14 @@ ipcMain.handle('open', (_e, url) => shell.openExternal(url));
 
 app.on('second-instance', () => { if (win) { win.show(); win.focus(); } });
 app.whenReady().then(() => {
+  if (!gotLock) return;
   app.setAppUserModelId('com.tomikav.steambandage');
   createWindow();
   createTray();
 });
 app.on('before-quit', () => {
   app.isQuiting = true;
-  try { farmer.client?.gamesPlayed([]); farmer.client?.logOff(); } catch {}
+  farmer.play([]);
+  try { farmer.client?.logOff(); } catch {}
 });
 app.on('window-all-closed', () => app.quit());

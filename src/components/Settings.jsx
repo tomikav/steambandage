@@ -57,7 +57,7 @@ export default function Settings({ s, open, onClose }) {
             <div className="row">
               <div><b>Precio</b></div>
               <select value={st.sellMode} disabled={!st.autoSell} onChange={(e) => set({ sellMode: e.target.value })}>
-                <option value="undercut">1 centavo menos que el más bajo</option>
+                <option value="undercut">Más bajo − 1 centavo</option>
                 <option value="match">Igual al más bajo</option>
               </select>
             </div>

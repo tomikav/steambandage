@@ -11,7 +11,7 @@ export function Ornament() {
 }
 
 export function Login({ s }) {
-  const [user, setUser] = useState('');
+  const [user, setUser] = useState(() => { try { return localStorage.getItem('sb-user') || ''; } catch { return ''; } });
   const [pass, setPass] = useState('');
   const [remember, setRemember] = useState(true);
   const busy = s.status === 'connecting';
@@ -19,6 +19,7 @@ export function Login({ s }) {
   const submit = (e) => {
     e.preventDefault();
     if (!user || !pass || busy) return;
+    try { localStorage.setItem('sb-user', user.trim()); } catch {}
     window.sb.login({ accountName: user.trim(), password: pass, remember });
   };
 
@@ -31,11 +32,11 @@ export function Login({ s }) {
 
         <label className="field">
           <span>Usuario de Steam</span>
-          <input value={user} onChange={(e) => setUser(e.target.value)} autoFocus spellCheck={false} />
+          <input value={user} onChange={(e) => setUser(e.target.value)} autoFocus={!user} spellCheck={false} />
         </label>
         <label className="field">
           <span>Contraseña</span>
-          <input type="password" value={pass} onChange={(e) => setPass(e.target.value)} />
+          <input type="password" value={pass} autoFocus={!!user} onChange={(e) => setPass(e.target.value)} />
         </label>
         <label className="check">
           <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
