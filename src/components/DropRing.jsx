@@ -37,8 +37,8 @@ export default function DropRing({ s, now }) {
     label = 'PRÓXIMO CROMO';
     big = over ? 'Inminente' : clock(w.estimateMs - elapsed);
     sub = over
-      ? `Lleva ${clock(elapsed)} · puede caer en cualquier momento`
-      : `ventana estimada de ${human(w.estimateMs)}${w.samples >= 2 ? ` · ${w.samples} caídas medidas` : ' · por defecto'}`;
+      ? <>lleva {clock(elapsed)}<br />puede caer en cualquier momento</>
+      : <>ventana de ~{human(w.estimateMs)}<br />{w.samples >= 2 ? `${w.samples} caídas medidas` : 'estimación inicial'}</>;
   } else if (farming && phase === 'multi' && current.length) {
     const th = Math.max(0.1, Number(settings.hoursThreshold) || 2);
     const extra = w.startedAt ? (now - w.startedAt) / 3600000 : 0;
@@ -46,7 +46,7 @@ export default function DropRing({ s, now }) {
     progress = Math.min(1, minH / th);
     label = 'CALENTANDO HORAS';
     big = `${minH.toFixed(1)} / ${th.toFixed(1)} h`;
-    sub = `${current.length} juegos a la vez · luego pasan a farmeo individual`;
+    sub = <>{current.length} juegos a la vez<br />luego pasan a farmeo individual</>;
   } else if (s.status === 'loading' || s.status === 'connecting') {
     label = 'CONECTANDO'; big = '···'; sub = 'Hablando con Steam';
   }

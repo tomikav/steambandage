@@ -51,10 +51,7 @@ export default function App() {
 
   const logged = !!s.account;
   if (s.status === 'guard') return <Shell s={s}><Guard s={s} /></Shell>;
-  if (!logged) {
-    if (s.status === 'connecting' && !s.error) return <Shell s={s}><div className="center-screen"><div className="loader" /></div></Shell>;
-    return <Shell s={s}><Login s={s} /></Shell>;
-  }
+  if (!logged) return <Shell s={s}><Login s={s} /></Shell>;
 
   const running = ['farming', 'paused'].includes(s.status);
   const solo = s.phase === 'solo' ? s.current[0] : null;

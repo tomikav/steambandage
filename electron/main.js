@@ -1,6 +1,7 @@
 const path = require('path');
 const { app, BrowserWindow, ipcMain, Notification, shell, Tray, Menu, nativeImage } = require('electron');
 const Farmer = require('./steam/farmer');
+const { detectAccounts } = require('./steam/local');
 
 let win = null;
 let tray = null;
@@ -8,7 +9,9 @@ const farmer = new Farmer();
 const isDev = !!process.env.VITE_DEV;
 const icon = path.join(__dirname, '..', 'build', 'icon.png');
 
-if (!app.requestSingleInstanceLock()) app.quit();
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) app.quit();
+let trayHintShown = false;
 
 function createWindow() {
   win = new BrowserWindow({
@@ -28,13 +31,20 @@ function createWindow() {
     },
   });
 
-  if (isDev) win.loadURL('http://localhost:5173');
+  if (isDev) win.loadURL('http://127.0.0.1:5173');
   else win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
 
   win.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });
   win.on('close', (e) => {
     // si está farmeando, cerrar la ventana la manda a la bandeja
-    if (farmer.running && !app.isQuiting) { e.preventDefault(); win.hide(); }
+    if (farmer.running && !app.isQuiting) {
+      e.preventDefault();
+      win.hide();
+      if (!trayHintShown && Notification.isSupported()) {
+        trayHintShown = true;
+        new Notification({ title: 'SteamBandage sigue farmeando', body: 'Está en la bandeja. Clic derecho → Salir para cerrarlo.', icon, silent: true }).show();
+      }
+    }
   });
 }
 
@@ -60,6 +70,9 @@ farmer.on('drop', ({ game, count }) => {
 ipcMain.handle('state', () => farmer.snapshot());
 ipcMain.handle('resume', () => farmer.resume());
 ipcMain.handle('login', (_e, data) => farmer.login(data));
+ipcMain.handle('qr-start', () => farmer.startQr());
+ipcMain.handle('qr-cancel', () => farmer.cancelQr());
+ipcMain.handle('accounts', () => detectAccounts());
 ipcMain.handle('guard', (_e, code) => farmer.submitGuard(code));
 ipcMain.handle('logout', () => farmer.logout());
 ipcMain.handle('start', () => farmer.start());
@@ -71,12 +84,14 @@ ipcMain.handle('open', (_e, url) => shell.openExternal(url));
 
 app.on('second-instance', () => { if (win) { win.show(); win.focus(); } });
 app.whenReady().then(() => {
+  if (!gotLock) return;
   app.setAppUserModelId('com.tomikav.steambandage');
   createWindow();
   createTray();
 });
 app.on('before-quit', () => {
   app.isQuiting = true;
-  try { farmer.client?.gamesPlayed([]); farmer.client?.logOff(); } catch {}
+  farmer.play([]);
+  try { farmer.client?.logOff(); } catch {}
 });
 app.on('window-all-closed', () => app.quit());

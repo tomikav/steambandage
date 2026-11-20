@@ -7,13 +7,16 @@
   "license": "MIT",
   "main": "electron/main.js",
   "scripts": {
-    "dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && cross-env VITE_DEV=1 electron .\"",
+    "dev": "concurrently -k -n vite,app -c magenta,red \"vite\" \"wait-on tcp:127.0.0.1:5173 && cross-env VITE_DEV=1 electron .\"",
     "build": "vite build",
     "start": "electron .",
-    "dist": "vite build && electron-builder --win"
+    "dist": "vite build && electron-builder --win",
+    "test": "node --test test/*.test.js"
   },
   "dependencies": {
     "cheerio": "^1.0.0",
+    "qrcode": "^1.5.4",
+    "steam-session": "^1.9.4",
     "steam-user": "^5.2.0",
     "steamcommunity": "^3.50.0"
   },
@@ -23,8 +26,8 @@
     "@vitejs/plugin-react": "^4.3.0",
     "concurrently": "^9.0.0",
     "cross-env": "^7.0.3",
-    "electron": "^33.0.0",
-    "electron-builder": "^25.0.0",
+    "electron": "^45.4.1",
+    "electron-builder": "^26.18.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "vite": "^5.4.0",
@@ -36,6 +39,7 @@
     "files": [
       "electron/**",
       "dist/**",
+      "build/icon.png",
       "package.json"
     ],
     "win": {
@@ -48,6 +52,19 @@
     },
     "directories": {
       "output": "release"
+    }
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tomikav/steambandage.git"
+  },
+  "overrides": {
+    "adm-zip": "^0.6.1",
+    "steam-appticket": {
+      "protobufjs": "^7.6.6"
     }
   }
 }

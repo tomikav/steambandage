@@ -13,6 +13,7 @@ const SteamCommunity = require('steamcommunity');
 const store = require('../store');
 const { fetchAllBadges, fetchGameDrops } = require('./badges');
 const market = require('./market');
+const QrLogin = require('./qr');
 
 const MIN = 60 * 1000;
 const SOLO_CHECK = 5 * MIN;
@@ -34,12 +35,22 @@ class Farmer extends EventEmitter {
     this.settings = store.getSettings();
     this.stats = store.getStats();
     this.logs = [];
+    this.qrLogin = new QrLogin();
+    this.qrLogin.on('qr', ({ svg, expiresAt }) => { this.qr = { state: 'ready', svg, expiresAt }; this.push(); });
+    this.qrLogin.on('scanned', () => { this.qr = { ...this.qr, state: 'scanned' }; this.push(); });
+    this.qrLogin.on('error', (err) => {
+      const net = /ENOTFOUND|ECONNREFUSED|ETIMEDOUT|ECONNRESET|EAI_AGAIN|socket/i.test(err.message);
+      this.qr = { state: 'error', error: net ? 'Sin conexión con Steam' : `Steam rechazó el QR (${err.message})` };
+      this.push();
+    });
+    this.qrLogin.on('done', ({ accountName, refreshToken }) => this.loginWithToken(accountName, refreshToken));
     this.reset();
   }
 
   reset() {
     clearTimeout(this.timer);
     clearTimeout(this.newItemsTimer);
+    clearTimeout(this.connectTimer);
     if (this.client) {
       this.client.removeAllListeners();
       this.client.on('error', () => {}); // evita crash por errores tardíos
@@ -47,6 +58,8 @@ class Farmer extends EventEmitter {
     }
     this.client = null;
     this.reconnecting = false;
+    this.refreshing = false;
+    this.selling = false;
     this.community = new SteamCommunity();
     this.status = 'offline';
     this.error = null;
@@ -69,6 +82,8 @@ class Farmer extends EventEmitter {
     this.session = { drops: 0, startedAt: null, sold: 0, soldCents: 0 };
     this.remember = false;
     this.accountName = null;
+    this.qrLogin?.cancel();
+    this.qr = { state: 'idle' };
   }
 
   // ---------- estado para la UI ----------
@@ -85,6 +100,7 @@ class Farmer extends EventEmitter {
       error: this.error,
       account: this.account,
       guard: this.guard,
+      qr: this.qr,
       phase: this.phase,
       current: this.current,
       queue: this.queue,
@@ -123,11 +139,24 @@ class Farmer extends EventEmitter {
   }
 
   // ---------- login ----------
+  watchConnect() {
+    clearTimeout(this.connectTimer);
+    this.connectTimer = setTimeout(() => {
+      if (this.status !== 'connecting') return;
+      const keep = this.settings;
+      this.reset();
+      this.settings = keep;
+      this.error = 'Steam no responde. Revisa tu conexión e intenta de nuevo';
+      this.log('error', this.error);
+    }, 45000);
+  }
+
   makeClient() {
     const c = new SteamUser({ renewRefreshTokens: true, autoRelogin: true });
     this.client = c;
 
     c.on('steamGuard', (domain, cb, lastCodeWrong) => {
+      clearTimeout(this.connectTimer);
       this.guardCb = cb;
       this.guard = { type: domain ? 'email' : 'mobile', domain, lastCodeWrong: !!lastCodeWrong };
       this.status = 'guard';
@@ -139,13 +168,13 @@ class Farmer extends EventEmitter {
     });
 
     c.on('loggedOn', () => {
+      clearTimeout(this.connectTimer);
       this.guard = null;
       this.error = null;
       this.status = 'loading';
       const id = c.steamID.getSteamID64();
       this.account = { steamID: id, name: this.accountName || c.accountInfo?.name || id, avatar: null };
       this.log('info', 'Sesión iniciada en Steam');
-      c.setPersona(SteamUser.EPersonaState.Invisible); // no te cambia el estado a tus amigos
       c.getPersonas([c.steamID], (err, personas) => {
         const p = personas && personas[id];
         if (p) {
@@ -196,7 +225,8 @@ class Farmer extends EventEmitter {
     });
 
     c.on('error', (err) => {
-      const msg = ERRORS[err.eresult] || err.message;
+      const net = /ENOTFOUND|ECONNREFUSED|ETIMEDOUT|ECONNRESET|EAI_AGAIN|socket/i.test(err.message);
+      const msg = ERRORS[err.eresult] || (net ? 'Sin conexión con Steam. Revisa tu internet' : err.message);
       if ([5, 8, 15, 18].includes(err.eresult) || /token/i.test(err.message)) store.clearToken();
       this.log('error', msg);
       const keep = this.settings;
@@ -216,7 +246,32 @@ class Farmer extends EventEmitter {
     this.accountName = accountName;
     this.status = 'connecting';
     this.push();
+    this.watchConnect();
     this.makeClient().logOn({ accountName, password, logonID: LOGON_ID, machineName: 'SteamBandage' });
+  }
+
+  startQr() {
+    if (this.account || this.status === 'connecting') return;
+    this.qr = { state: 'loading' };
+    this.push();
+    this.qrLogin.start();
+  }
+
+  cancelQr() {
+    this.qrLogin.cancel();
+    this.qr = { state: 'idle' };
+    this.push();
+  }
+
+  loginWithToken(accountName, token) {
+    this.reset();
+    this.remember = true;
+    this.accountName = accountName;
+    store.saveToken(accountName, token);
+    this.status = 'connecting';
+    this.log('info', 'Aprobado desde la app de Steam');
+    this.watchConnect();
+    this.makeClient().logOn({ refreshToken: token, logonID: LOGON_ID, machineName: 'SteamBandage' });
   }
 
   resume() {
@@ -227,6 +282,7 @@ class Farmer extends EventEmitter {
     this.accountName = saved.accountName;
     this.status = 'connecting';
     this.push();
+    this.watchConnect();
     this.makeClient().logOn({ refreshToken: saved.token, logonID: LOGON_ID, machineName: 'SteamBandage' });
     return true;
   }
@@ -236,6 +292,7 @@ class Farmer extends EventEmitter {
     const cb = this.guardCb;
     this.guardCb = null;
     this.status = 'connecting';
+    this.watchConnect();
     this.push();
     cb(String(code).trim());
   }
@@ -247,6 +304,10 @@ class Farmer extends EventEmitter {
     this.reset();
     this.settings = keep;
     this.push();
+  }
+
+  play(ids) {
+    try { this.client?.gamesPlayed(ids); } catch (e) { this.log('warn', `gamesPlayed: ${e.message}`); }
   }
 
   // ---------- control ----------
@@ -266,7 +327,7 @@ class Farmer extends EventEmitter {
     this.current = [];
     this.phase = null;
     this.windowStart = null;
-    try { this.client?.gamesPlayed([]); } catch {}
+    this.play([]);
     this.status = 'idle';
     this.log('info', 'Farmeo detenido');
   }
@@ -297,7 +358,8 @@ class Farmer extends EventEmitter {
   }
 
   async refresh() {
-    if (!this.running) return;
+    if (!this.running || this.refreshing) return;
+    this.refreshing = true;
     this.checking = true; this.push();
     try {
       const games = await fetchAllBadges(this.community, this.account.steamID);
@@ -305,11 +367,14 @@ class Farmer extends EventEmitter {
       this.queue = this.sortQueue(games).map((g) => ({ ...g, skipped: bl.has(g.appid) }));
       this.lastCheck = Date.now();
       this.checking = false;
+      this.refreshing = false;
       this.pick();
     } catch (e) {
       this.checking = false;
+      this.refreshing = false;
+      if (!this.running) return;
       this.log('warn', `No pude leer tus insignias: ${e.message}`);
-      if (/expirada/.test(e.message)) this.client.webLogOn();
+      if (/expirada/.test(e.message)) this.client?.webLogOn();
       this.schedule(2 * MIN);
     }
   }
@@ -321,7 +386,7 @@ class Farmer extends EventEmitter {
     const active = this.queue.filter((g) => !g.skipped && g.drops > 0);
     if (!active.length) {
       this.current = []; this.phase = null; this.windowStart = null;
-      this.client.gamesPlayed([]);
+      this.play([]);
       this.status = 'done';
       this.running = false;
       this.nextCheck = null;
@@ -344,7 +409,7 @@ class Farmer extends EventEmitter {
     const ids = this.current.map((g) => g.appid);
     if (ids.join(',') !== prevIds) {
       this.windowStart = Date.now();
-      this.client.gamesPlayed(ids);
+      this.play(ids);
       this.log('play', this.phase === 'solo'
         ? `Farmeando ${this.current[0].name} (${this.current[0].drops} cromos)`
         : `Calentando horas en ${ids.length} juegos a la vez`);
@@ -385,7 +450,7 @@ class Farmer extends EventEmitter {
     } catch (e) {
       this.checking = false;
       this.log('warn', `Check falló: ${e.message}`);
-      if (/expirada/.test(e.message)) this.client.webLogOn();
+      if (/expirada/.test(e.message)) this.client?.webLogOn();
       this.schedule(2 * MIN);
     }
   }
