@@ -22,11 +22,19 @@ function Shield() {
 
 function QrBox({ qr, now, connecting }) {
   const st = connecting ? 'connecting' : (qr?.state || 'loading');
+  const [zoom, setZoom] = useState(false);
   return (
     <div className={`qr-box st-${st}`}>
+      {zoom && st === 'ready' && (
+        <div className="qr-zoom" onClick={() => setZoom(false)}>
+          <img src={qr.svg} alt="Código QR" />
+          <span>Clic para cerrar</span>
+        </div>
+      )}
       <span className="qc tl" /><span className="qc tr" /><span className="qc bl" /><span className="qc br" />
       {(st === 'ready' || st === 'scanned') && (
-        <div className="qr-svg" dangerouslySetInnerHTML={{ __html: qr.svg }} />
+        <img className="qr-img" src={qr.svg} alt="Código QR de inicio de sesión"
+          title="Clic para ampliar" onClick={() => setZoom(true)} />
       )}
       {(st === 'loading' || st === 'idle') && <div className="loader" />}
       {st === 'connecting' && (
@@ -50,7 +58,7 @@ function QrBox({ qr, now, connecting }) {
         </div>
       )}
       {st === 'ready' && qr.expiresAt && (
-        <div className="qr-timer">se renueva en {clock(qr.expiresAt - now)}</div>
+        <div className="qr-timer">se renueva en {clock(qr.expiresAt - now)} · clic para ampliar</div>
       )}
     </div>
   );
@@ -126,7 +134,9 @@ export function Login({ s }) {
 
           {acc ? (
             <div className="acct-detect">
-              {acc.avatar ? <img src={acc.avatar} alt="" /> : <div className="av-ph">{acc.personaName[0]}</div>}
+              {acc.avatar
+                ? <img src={acc.avatar} alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                : <div className="av-ph">{(acc.personaName || '?')[0]}</div>}
               <div>
                 <div className="ad-name">{acc.personaName}</div>
                 <div className="ad-sub">Cuenta detectada en este PC · escanea con ella</div>

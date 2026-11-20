@@ -179,7 +179,7 @@ test('login con QR sin contraseña', async (t) => {
   f.startQr();
   await wait(50);
   assert.equal(f.qr.state, 'ready');
-  assert.match(f.qr.svg, /^<svg/);
+  assert.match(f.qr.svg, /^data:image\/png;base64,/);
 
   FakeLoginSession.last.emit('remoteInteraction');
   assert.equal(f.qr.state, 'scanned');

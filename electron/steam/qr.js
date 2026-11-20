@@ -36,9 +36,11 @@ class QrLogin extends EventEmitter {
     try {
       const { qrChallengeUrl } = await session.startWithQR();
       if (this.session !== session) return;
-      const svg = await QRCode.toString(qrChallengeUrl, {
-        type: 'svg', margin: 2, errorCorrectionLevel: 'M',
-        color: { dark: '#0c0a0e', light: '#ece4e8' },
+      // Negro puro sobre blanco, margen de 4 módulos y corrección L (módulos más grandes):
+      // es lo que mejor lee el escáner de la app de Steam.
+      const svg = await QRCode.toDataURL(qrChallengeUrl, {
+        margin: 4, errorCorrectionLevel: 'L', scale: 12,
+        color: { dark: '#000000ff', light: '#ffffffff' },
       });
       this.emit('qr', { svg, expiresAt: Date.now() + QR_LIFETIME });
     } catch (err) {
